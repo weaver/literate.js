@@ -138,7 +138,11 @@ function untangle(program) {
 
   // addBlock :: ()
   //
-  // A helper method for `endBlock`.
+  // This helper method for `endBlock` adds the current block to the
+  // markdown document.  First, make sure there's an empty line
+  // between this block and the previous block.  Also, add any
+  // signature (this shouldn't normally happen, but is here for
+  // completeness).
   //
   // Returns nothing.
   function addBlock() {
@@ -150,6 +154,13 @@ function untangle(program) {
     });
   }
 
+  // addSig :: ()
+  //
+  // This helper method for `addLine` and `endBlock` adds a signature
+  // table to the current block.  Signatures are accumulated into an
+  // array that looks like `[[name, '::', 'type'], ...]` by `addLine`.
+  //
+  // Returns nothing.
   function addSig() {
     if (sig.length > 0) {
       block.push(table(sig, 'sig', function(cell) {
@@ -202,6 +213,15 @@ function repeat(str, times) {
   return result;
 }
 
+// table :: [[String]] -> String -> (String -> String) -> String
+//
+// Format a two-dimensional array as an HTML table.
+//
+// + data   - Array of rows.
+// + cls    - String class name for this table.
+// + format - Function used to format cell content.
+//
+// Returns String html table.
 function table(data, cls, format) {
   var rows = data.map(function(row) {
     var cells = row.map(function(cell) {
@@ -212,6 +232,14 @@ function table(data, cls, format) {
   return '<table class="' + cls + '">' + rows.join('') + '</table>';
 }
 
+// escapeHtml :: String -> String
+//
+// Make `str` safe to add into an HTML document by escaping important
+// characters with HTML entities.
+//
+// + str - String of text that may contain special HTML characters.
+//
+// Returns String of safe HTML.
 function escapeHtml(str) {
   var entities = { '<': '&lt;', '>': '&gt;', '&': '&amp;', '"': '&quot;' };
   return str.replace(/[<>&"]/g, function(character) {
