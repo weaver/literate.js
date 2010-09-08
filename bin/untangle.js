@@ -7,10 +7,13 @@
 // the comment characters off to create a markdown document, then
 // converting the text to HTML.
 
+require.paths.unshift(__dirname + '/../ext');
+
 var fs = require('fs'),
     path = require('path'),
     sys = require('sys'),
-    showdown = require(path.join(__dirname, '../ext/showdown'));
+    showdown = require('showdown'),
+    Mustache = require('mustache');
 
 
 /// ## Main Program ##
@@ -24,8 +27,13 @@ var fs = require('fs'),
 //
 // Returns nothing.
 function main(filename) {
-  var content = fs.readFileSync(filename, 'utf-8');
-  sys.print(markdown(untangle(content)));
+  var content = fs.readFileSync(filename, 'utf-8'),
+      template = path.join(__dirname, '../layout/page.html.mu');
+
+  sys.print(render(template, {
+    body: markdown(untangle(content)),
+    file: path.basename(filename)
+  }));
 }
 
 // markdown :: String -> String
@@ -37,6 +45,10 @@ function main(filename) {
 // Returns String HTML.
 function markdown(text) {
   return (new showdown.converter()).makeHtml(text);
+}
+
+function render(path, bindings) {
+  return Mustache.to_html(fs.readFileSync(path, 'utf-8'), bindings);
 }
 
 // untangle :: String -> String
@@ -86,12 +98,12 @@ function untangle(program) {
 
     // Named Type Signature
     if (($m = line.match(/^\s*([^\s:]+)\s*::(.*)$/))) {
-      sig.push([$m[1], '::', $m[2]]);
+      sig.push([$m[1], ' :: ', $m[2]]);
       return;
     }
     // Unnamed Type Signature
     else if (($m = line.match(/^\s+::\s*(.*)$/))) {
-      sig.push(['', '::', $m[1]]);
+      sig.push(['', ' :: ', $m[1]]);
       return;
     }
     else if (sig.length > 0)
