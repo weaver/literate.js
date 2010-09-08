@@ -44,17 +44,17 @@ function markdown(text) {
 // Convert a javascript source program to a Markdown document by
 // extracting comments.
 //
-// Relevant comments are those followed by an empty line
-// (general-purpose documentation) and those followed by a function
-// (method documentation).  Comments followed immediately by a
-// non-function line are assumed to be simple inline comments and are
-// ignored.
+// Relevant comments are followed by an empty line (general-purpose
+// documentation) or by a function (method documentation).  Comments
+// followed immediately by a non-function line are assumed to be
+// simple inline comments and are ignored.
 //
 // + program - String javascript source.
 //
 // Returns String Markdown document.
 function untangle(program) {
   var inBlock = true,
+      sig = [],
       block = [],
       text = [],
       depth = 1,
@@ -84,15 +84,22 @@ function untangle(program) {
   function addLine(line) {
     var $m;
 
+    // Named Type Signature
+    if (($m = line.match(/^\s*([^\s:]+)\s*::(.*)$/))) {
+      sig.push([$m[1], '::', $m[2]]);
+      return;
+    }
+    // Unnamed Type Signature
+    else if (($m = line.match(/^\s+::\s*(.*)$/))) {
+      sig.push(['', '::', $m[1]]);
+      return;
+    }
+    else if (sig.length > 0)
+      addSig();
+
     // Parameter List
     if (($m = line.match(/^\s*([\*\+\-])\s*(\S+)\s+\-\s+(.*)$/)))
       line = $m[1] + ' `' + $m[2] + '` ' + $m[3];
-    // Named Type Signature
-    else if (($m = line.match(/^\s*([^\s:]+)\s*::(.*)$/)))
-      return;
-    // Unnamed Type Signature
-    else if (($m = line.match(/^(\s+)::\s*(.*)$/)))
-      return;
     // Header
     else if (($m = line.match(/(#+)/)))
       depth = $m[1].length;
@@ -113,16 +120,17 @@ function untangle(program) {
     var $m;
 
     // Empty Line
-    if (/^\s*$/.test(line))
+    if (/^\s*$/.test(line)) {
       addBlock();
+    }
     // Bound Function
     else if (($m = line.match(/(\.?[^\.\s=]+)\s*=\W*function(\(.*\))/))) {
-      text.push(repeat('#', depth + 1) + ' ' + $m[1] + $m[2]);
+      block.unshift(repeat('#', depth + 1) + ' ' + $m[1] + $m[2]);
       addBlock();
     }
     // Named Function
     else if (($m = line.match(/function\s+([^\s\(]+)\s*(\(.*\))/))) {
-      text.push(repeat('#', depth + 1) + ' ' + $m[1] + $m[2]);
+      block.unshift(repeat('#', depth + 1) + ' ' + $m[1] + $m[2]);
       addBlock();
     }
     block = undefined;
@@ -136,9 +144,19 @@ function untangle(program) {
   function addBlock() {
     if (text.length > 0)
       text.push('');
+    addSig();
     block.forEach(function(line) {
       text.push(line);
     });
+  }
+
+  function addSig() {
+    if (sig.length > 0) {
+      block.push(table(sig, 'sig', function(cell) {
+        return '<code>' + cell + '</code>';
+      }));
+      sig = [];
+    }
   }
 
   // Process each line.
@@ -182,6 +200,23 @@ function repeat(str, times) {
     result += str;
 
   return result;
+}
+
+function table(data, cls, format) {
+  var rows = data.map(function(row) {
+    var cells = row.map(function(cell) {
+      return '<td>' + format(escapeHtml(cell)) + '</td>';
+    });
+    return '<tr>' + cells.join('') + '</tr>';
+  });
+  return '<table class="' + cls + '">' + rows.join('') + '</table>';
+}
+
+function escapeHtml(str) {
+  var entities = { '<': '&lt;', '>': '&gt;', '&': '&amp;', '"': '&quot;' };
+  return str.replace(/[<>&"]/g, function(character) {
+    return entities[character];
+  });
 }
 
 
